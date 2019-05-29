@@ -17,6 +17,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.utils.six.moves import range, reduce
 from django.utils.text import capfirst
+from django.utils.module_loading import import_string
 
 import django
 
@@ -278,7 +279,12 @@ class AdvancedFilterForm(CleanWhiteSpacesMixin, forms.ModelForm):
             # get existing instance model
             self._model = apps.get_model(*instance.model.split('.'))
             try:
-                model_admin = admin.site._registry[self._model]
+                admin_instance = getattr(settings, 'ADVANCED_FILTERS_ADMIN_INSTANCE', None)
+                if admin_instance:
+                    site = import_string(admin_instance).site
+                else:
+                    site = admin.site
+                model_admin = site._registry[self._model]
             except KeyError:
                 logger.debug('No ModelAdmin registered for %s', self._model)
         else:
