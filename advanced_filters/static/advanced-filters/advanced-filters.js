@@ -63,6 +63,29 @@ var OperatorHandlers = function($) {
 		}
 	};
 
+	self.get_operators = function getOperators(elm) {
+		var field = $(elm).val();
+		var choicesUrl = ADVANCED_FILTER_OPERATOR_LOOKUP_URL + (FORM_MODEL ||
+		MODEL_LABEL) + '/' + field;
+		$.get(choicesUrl, function getChoices(data) {
+		  var query = $(elm).parents('tr').find('select.query-operator');
+		  var results = data.results;
+		  $(query).find('option').each(function processOperator() {
+			var index = results.indexOf($(this).val());
+			if (index === -1) {
+			  $(this).remove();
+			} else {
+			  $(this).show();
+			  results.splice(index, 1);
+			}
+		  });
+		  for (let i = 0; i < results.length; i += 1) {
+			const option = new Option(self.operators[results[i]], results[i]);
+			$(query).append($(option));
+		  }
+		});
+	  };
+
 	self.initialize_select2 = function(elm) {
 		// initialize select2 widget and populate field choices
 		var field = $(elm).val();
@@ -75,6 +98,9 @@ var OperatorHandlers = function($) {
                 return { 'id': term, 'text': term };
             }});
 		});
+		if ($(elm).val() !== '_OR') {
+			self.get_operators(elm);
+		  }
 	};
 
 	self.field_selected = function(elm) {

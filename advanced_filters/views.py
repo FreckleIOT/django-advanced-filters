@@ -75,3 +75,43 @@ class GetFieldChoices(CsrfExemptMixin, StaffuserRequiredMixin,
                    choices, key=itemgetter(0))]
 
         return self.render_json_response({'results': results})
+
+
+class GetOperatorChoices(CsrfExemptMixin, StaffuserRequiredMixin,
+                         JSONResponseMixin, View):
+
+    def get(self, request, model=None, field_name=None):
+        if model is field_name is None:
+            return self.render_json_response(
+                {'error': "GetOperatorChoices view requires 2 arguments"},
+                status=400)
+        app_label, model_name = model.split('.', 1)
+        try:
+            model_obj = apps.get_model(app_label, model_name)
+            field = get_fields_from_path(model_obj, field_name)[-1]
+            model_obj = field.model
+            internal_type = field.get_internal_type()
+            choices = ["isnull"]
+            if internal_type == 'CharField':
+                choices.extend(
+                    ["iexact", "icontains", "iregex"])
+            elif internal_type == 'BooleanField':
+                choices.extend(
+                    ["istrue", "isfalse"])
+            elif (internal_type == 'PositiveIntegerField' or
+                  internal_type == 'IntegerField' or
+                  internal_type == 'FloatField'):
+                choices.extend(
+                    ["iregex", "lt", "gt", "lte", "gte"])
+            else:
+                choices.extend(["iexact", "icontains", "iregex",
+                                "lt", "gt", "lte", "gte"])
+            return self.render_json_response({'results': tuple(choices)})
+        except AttributeError as e:
+            logger.debug("Invalid kwargs passed to view: %s", e)
+            return self.render_json_response(
+                {'error': "No installed app/model: %s" % model}, status=400)
+        except (LookupError, FieldDoesNotExist) as e:
+            logger.debug("Invalid kwargs passed to view: %s", e)
+            return self.render_json_response(
+                {'error': force_text(e)}, status=400)
