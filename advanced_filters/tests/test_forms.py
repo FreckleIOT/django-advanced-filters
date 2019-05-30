@@ -5,6 +5,8 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db.models import Q, FieldDoesNotExist
 from django.test import TestCase
+from django.conf import settings
+from django.utils.module_loading import import_string
 import django
 
 import pytest
@@ -77,7 +79,7 @@ class TestQueryForm(TestCase):
 
         data['operator'] = 'isnull'
         form = AdvancedFilterQueryForm(self.fields, data=data)
-        assert form._build_query_dict() == {'fname__isnull': None}
+        assert form._build_query_dict() == {'fname__isnull': True}
 
         data['operator'] = 'istrue'
         form = AdvancedFilterQueryForm(self.fields, data=data)
@@ -140,7 +142,7 @@ class TestQueryForm(TestCase):
         complex_query = (Q(groups__name='bar') |
                          (Q(first_name__iexact='fez') & ~Q(is_staff=False)) |
                          (Q(date_joined__range=date_range) &
-                          Q(is_superuser=True) & ~Q(is_active=None)))
+                          Q(is_superuser=True) & ~Q(is_active__isnull=True)))
         af = AdvancedFilter(query=complex_query)
 
         expected = [
@@ -156,7 +158,7 @@ class TestQueryForm(TestCase):
              'value_from': time.mktime(date_range[0].timetuple()),
              'value_to': time.mktime(date_range[1].timetuple())},
             {'field': 'is_superuser', 'negate': False, 'operator': 'istrue', 'value': True},
-            {'field': 'is_active', 'negate': True, 'operator': 'isnull', 'value': None},
+            {'field': 'is_active', 'negate': True, 'operator': 'isnull', 'value': True},
         ]
         for i, field in enumerate(af.list_fields()):
             res = AdvancedFilterQueryForm._parse_query_dict(field, Rep)
@@ -299,6 +301,12 @@ class TestAdminInitialization(CommonFormTest):
         self.fdata['form-TOTAL_FORMS'] = 3
         print(self.fdata)
 
+        admin_instance = getattr(settings, 'ADVANCED_FILTERS_ADMIN_INSTANCE', None)
+        if admin_instance:
+            self.site = import_string(admin_instance).site
+        else:
+            self.site = admin.site
+
         class RepModelAdmin(admin.ModelAdmin):
             model = self.Rep
             advanced_filter_fields = ['groups__name', 'first_name']
@@ -307,7 +315,7 @@ class TestAdminInitialization(CommonFormTest):
 
         # modeladmin is initially unregistered
         try:
-            admin.site.unregister(self.Rep)
+            self.site.unregister(self.Rep)
         except admin.sites.NotRegistered:
             print('Rep Not registered yet')
 
@@ -323,7 +331,7 @@ class TestAdminInitialization(CommonFormTest):
         assert len(field_choices) == 1  # _OR choice always present
 
         # registering an admin allows passing only instance to find valid choices
-        admin.site.register(self.Rep, self.rep_model_admin)
+        self.site.register(self.Rep, self.rep_model_admin)
         form = AdvancedFilterForm(data=self.fdata, instance=self.af)
         assert form.is_valid()
         field_choices = form.fields_formset.forms[0].fields['field'].choices
