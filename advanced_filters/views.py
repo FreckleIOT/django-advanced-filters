@@ -91,21 +91,30 @@ class GetOperatorChoices(CsrfExemptMixin, StaffuserRequiredMixin,
             field = get_fields_from_path(model_obj, field_name)[-1]
             model_obj = field.model
             internal_type = field.get_internal_type()
-            choices = ["isnull"]
-            if internal_type == 'CharField':
-                choices.extend(
-                    ["iexact", "icontains", "iregex"])
-            elif internal_type == 'BooleanField':
-                choices.extend(
-                    ["istrue", "isfalse"])
-            elif (internal_type == 'PositiveIntegerField' or
-                  internal_type == 'IntegerField' or
-                  internal_type == 'FloatField'):
-                choices.extend(
-                    ["iregex", "lt", "gt", "lte", "gte"])
+            disabled = getattr(settings, 'ADVANCED_FILTERS_DISABLE_FOR_FIELDS',
+                               tuple())
+            if field.name in disabled:
+                logger.debug('Skipped lookup of operators for disabled fields')
+                choices = []
             else:
-                choices.extend(["iexact", "icontains", "iregex",
-                                "lt", "gt", "lte", "gte"])
+                choices = ["isnull"]
+                if internal_type == 'CharField' or internal_type == 'EmailField':
+                    choices.extend(
+                        ["iexact", "icontains", "iregex"])
+                elif internal_type == 'BooleanField':
+                    choices.extend(
+                        ["istrue", "isfalse"])
+                elif (internal_type == 'PositiveIntegerField' or
+                      internal_type == 'IntegerField' or
+                      internal_type == 'FloatField'):
+                    choices.extend(
+                        ["iregex", "lt", "gt", "lte", "gte"])
+                elif internal_type == 'DateTimeField':
+                    choices.extend(
+                        ["range", "lt", "gt", "lte", "gte"])
+                else:
+                    choices.extend(["iexact", "icontains", "iregex",
+                                    "lt", "gt", "lte", "gte"])
             return self.render_json_response({'results': tuple(choices)})
         except AttributeError as e:
             logger.debug("Invalid kwargs passed to view: %s", e)
