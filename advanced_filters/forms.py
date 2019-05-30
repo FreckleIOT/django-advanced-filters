@@ -67,7 +67,7 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
         label=_('Operator'),
         required=True, choices=OPERATORS, initial="iexact",
         widget=forms.Select(attrs={'class': 'query-operator'}))
-    value = VaryingTypeCharField(required=True, widget=forms.TextInput(
+    value = VaryingTypeCharField(required=False, widget=forms.TextInput(
         attrs={'class': 'query-value'}), label=_('Value'))
     value_from = forms.DateTimeField(widget=forms.HiddenInput(
         attrs={'class': 'query-dt-from'}), required=False)
@@ -167,6 +167,15 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
             if ('value_from' in cleaned_data and
                     'value_to' in cleaned_data):
                 self.set_range_value(cleaned_data)
+            if (not (cleaned_data.get('field') == "_OR" or
+                     cleaned_data.get('operator') == "isnull" or
+                     cleaned_data.get('operator') == "istrue" or
+                     cleaned_data.get('operator') == "isfalse") and
+                    cleaned_data.get('value') == ''):
+                logger.debug(
+                    "Errors validating advanced query filters: value "
+                    "is a required attribute")
+            raise forms.ValidationError({'value': ["This field is required.", ]})
         return cleaned_data
 
     def make_query(self, *args, **kwargs):
