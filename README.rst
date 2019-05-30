@@ -38,7 +38,20 @@ Installation & Set up
 2. Add both ``'advanced_filters'`` to ``INSTALLED_APPS``.
 3. Add ``url(r'^advanced_filters/', include('advanced_filters.urls'))``
    to your project's urlconf.
-4. Run ``python manage.py syncdb`` or ``python manage.py migrate`` (for django >= 1.7)
+4. Add ``'advanced_filters.context_processors.advanced_filters'`` path to the ``context_processors`` option in the ``TEMPLATES`` setting.
+5. Run ``python manage.py syncdb`` or ``python manage.py migrate`` (for django >= 1.7)
+
+
+Available Settings
+===================
+
+##### ADVANCED_FILTERS_MINIMUM_INPUT 
+Specifies minimum search term length for Select2
+**Default**: ``2``
+
+##### ADVANCED_FILTERS_QUIET_MILLIS
+Specifies number of milliseconds that Select2 has to wait to make a search request after the user stops typing
+**Default**: ``300``
 
 Integration Example
 ===================
