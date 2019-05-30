@@ -40,6 +40,14 @@ Installation & Set up
    to your project's urlconf.
 4. Run ``python manage.py syncdb`` or ``python manage.py migrate`` (for django >= 1.7)
 
+
+Available Settings
+===================
+
+##### ADVANCED_FILTERS_ADMIN_INSTANCE  
+Specifies the path to the custom admin that should be used
+**Default**: ``django.contrib.admin``
+
 Integration Example
 ===================
 
