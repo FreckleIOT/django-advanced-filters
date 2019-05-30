@@ -70,11 +70,27 @@ var OperatorHandlers = function($) {
 						  MODEL_LABEL) + '/' + field;
 		var input = $(elm).parents('tr').find('input.query-value');
 		input.select2("destroy");
-		$.get(choices_url, function(data) {
-			input.select2({'data': data, 'createSearchChoice': function(term) {
-                return { 'id': term, 'text': term };
-            }});
-		});
+		input.select2({
+      minimumInputLength: ADVANCED_FILTERS_MINIMUM_INPUT,
+      ajax: {
+        url: choices_url,
+        dataType: 'json',
+        quietMillis: ADVANCED_FILTERS_QUIET_MILLIS,
+        data: function data(term, page) {
+          var query = {
+            search: term,
+            page
+          };
+          return query;
+        },
+        results: function results(data) {
+          return {
+            results: data.results,
+            more: data.more
+          };
+        }
+      }
+    });
 	};
 
 	self.field_selected = function(elm) {
