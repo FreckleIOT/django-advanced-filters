@@ -45,28 +45,32 @@ var OperatorHandlers = function($) {
 		}
 	};
 
-	self.modify_widget = function(elm) {
+	self.modify_widget = function(elm, init) {
 		// pick a widget for the value field according to operator
 		self.value = $(elm).val();
 		self.val_input = $(elm).parents('tr').find('.query-value');
 		var row = $(elm).parents('tr');
 		var value = row.find('.query-value');
-		if (self.value == "isnull" || self.value == "istrue" || self.value == "isfalse") {
-			self.disable_value(value);
-		} else {
-			self.enable_value(value);
-		}
+		var op = row.find('.query-operator');
 		if (self.value == "range") {
 			self.add_datepickers();
 		} else {
 			self.remove_datepickers();
-			if (self.value !== 'iexact'){
-				self.removeSelect2(elm)
-			} else {
-				valueElem = $(elm).parents('tr').find('input.query-value');
-				self.initialize_select2(valueElem)
+			if (!init){
+				valueElem = $(elm).parents('tr').find('select.query-field');
+				if ($(op).val() == "isnull" || $(op).val() == "istrue" || $(op).val() == "isfalse") {
+					self.disable_value(value);
+				} else {
+					self.enable_value(value);
+				}
+				if ($(op).val() === 'iexact'){
+					self.initialize_select2(valueElem, init)
+				} else {
+					self.removeSelect2(valueElem)
+				}
 			}
 		}
+
 	};
 
 
@@ -121,25 +125,13 @@ var OperatorHandlers = function($) {
           };
         }
       }
-    });
+		});
     if (input[0].value && initValue) {
       input.select2('data', { id: input[0].value, text: input[0].value });
     } else {
       input[0].value = null;
       input.select2('data', null);
     }
-		var row = $(elm).parents('tr');
-		var op = row.find('.query-operator');
-		var value = row.find('.query-value');
-		if ($(op).val() == "isnull" || $(op).val() == "istrue" || $(op).val() == "isfalse") {
-			self.disable_value(value);
-		}
-		if ($(elm).val() == "_OR") {
-			self.disable_value(value);
-			self.disable_op(op);
-		} else {
-			self.get_operators(elm);
-		}
 	};
 
 	self.disable_value = function(value) {
@@ -178,9 +170,21 @@ var OperatorHandlers = function($) {
 		var row = $(elm).parents('tr');
 		var op = row.find('.query-operator');
 		var value = row.find('.query-value');
-		self.enable_op(op);
-		self.enable_value(value);
-		self.initialize_select2(elm, initValue);
+
+		if ($(elm).val() == "_OR") {
+			self.disable_value(value);
+			self.disable_op(op);
+		} else {
+			self.get_operators(elm);
+		}
+		if ($(op).val() == "isnull" || $(op).val() == "istrue" || $(op).val() == "isfalse") {
+			self.disable_value(value);
+		}
+		if ($(op).val() === 'iexact'){
+			self.initialize_select2(elm, initValue)
+		} else {
+			self.removeSelect2(elm)
+		}
 	};
 
 	self.init = function() {
@@ -197,7 +201,7 @@ var OperatorHandlers = function($) {
 				if ($(this).val() != before_change) self.modify_widget(this);
 				$(this).data('pre_change', $(this).val());
 			}).change();
-			self.modify_widget(this);
+			self.modify_widget(this, true);
 		});
 		$('.form-row select.query-field').each(function() {
 			$(this).off("change");

@@ -169,14 +169,14 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
             if ('value_from' in cleaned_data and
                     'value_to' in cleaned_data):
                 self.set_range_value(cleaned_data)
-            if (not (cleaned_data.get('field') == "_OR" or
-                     cleaned_data.get('operator') == "isnull" or
-                     cleaned_data.get('operator') == "istrue" or
-                     cleaned_data.get('operator') == "isfalse") and
-                    cleaned_data.get('value') == ''):
-                logger.debug(
-                    "Errors validating advanced query filters: value "
-                    "is a required attribute")
+        elif (not (cleaned_data.get('field') == "_OR" or
+                   cleaned_data.get('operator') == "isnull" or
+                   cleaned_data.get('operator') == "istrue" or
+                   cleaned_data.get('operator') == "isfalse") and
+                cleaned_data.get('value') == ''):
+            logger.debug(
+                "Errors validating advanced query filters: value "
+                "is a required attribute")
             raise forms.ValidationError({'value': ["This field is required.", ]})
         return cleaned_data
 
