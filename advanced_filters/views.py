@@ -12,6 +12,8 @@ from django.views.generic import View
 from braces.views import (CsrfExemptMixin, StaffuserRequiredMixin,
                           JSONResponseMixin)
 
+from django.core.paginator import Paginator, EmptyPage
+
 logger = logging.getLogger('advanced_filters.views')
 
 
@@ -28,6 +30,9 @@ class GetFieldChoices(CsrfExemptMixin, StaffuserRequiredMixin,
     under ADVANCED_FILTERS_MAX_CHOICES.
     """
     def get(self, request, model=None, field_name=None):
+        search = request.GET.get('search', '')
+        page = request.GET.get('page', 1)
+        has_next = False
         if model is field_name is None:
             return self.render_json_response(
                 {'error': "GetFieldChoices view requires 2 arguments"},
@@ -47,12 +52,12 @@ class GetFieldChoices(CsrfExemptMixin, StaffuserRequiredMixin,
                 {'error': force_text(e)}, status=400)
 
         choices = field.choices
+        choices = sorted(choices)
         # if no choices, populate with distinct values from instances
         if not choices:
             choices = []
             disabled = getattr(settings, 'ADVANCED_FILTERS_DISABLE_FOR_FIELDS',
                                tuple())
-            max_choices = getattr(settings, 'ADVANCED_FILTERS_MAX_CHOICES', 254)
             if field.name in disabled:
                 logger.debug('Skipped lookup of choices for disabled fields')
             elif isinstance(field, (models.BooleanField, models.DateField,
@@ -61,20 +66,28 @@ class GetFieldChoices(CsrfExemptMixin, StaffuserRequiredMixin,
                              field, type(field))
             else:
                 # the order_by() avoids ambiguity with values() and distinct()
-                choices = model_obj.objects.order_by(field.name).values_list(
-                    field.name, flat=True).distinct()
-                # additional query is ok to avoid fetching too many values
-                if choices.count() <= max_choices:
-                    choices = zip(choices, choices)
-                    logger.debug('Choices found for field %s: %s',
-                                 field.name, choices)
-                else:
+                filter_kwargs = {
+                    "{}__icontains".format(field.name): search,
+                    "{}__isnull".format(field.name): False
+                }
+                queryset = model_obj.objects.filter(
+                    **filter_kwargs).order_by(field.name).values_list(
+                        field.name, flat=True).distinct()
+                page_size = getattr(
+                    settings, 'ADVANCED_FILTERS_PAGE_SIZE', 20)
+                paginator = Paginator(queryset, page_size)
+                try:
+                    page = paginator.page(page)
+                    choices = zip(page, page)
+                    has_next = page.has_next()
+                except EmptyPage:
                     choices = []
+                    has_next = False
 
-        results = [{'id': c[0], 'text': force_text(c[1])} for c in sorted(
-                   choices, key=itemgetter(0))]
+        results = [{'id': c[0], 'text': force_text(c[1])} for c in choices]
 
-        return self.render_json_response({'results': results})
+        return self.render_json_response(
+            {'results': results, "more": has_next})
 
 
 class GetOperatorChoices(CsrfExemptMixin, StaffuserRequiredMixin,

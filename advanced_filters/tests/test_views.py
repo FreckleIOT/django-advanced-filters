@@ -72,6 +72,7 @@ class TestGetFieldChoicesView(TestCase):
         self.assert_view_error(expected_exception,
                                model='reps.SalesRep', field_name='baz')
 
+
     def test_field_with_choices(self):
         view_url = reverse(self.url_name, kwargs=dict(
             model='customers.Client', field_name='language'))
@@ -81,7 +82,8 @@ class TestGetFieldChoicesView(TestCase):
                 {'id': 'en', 'text': 'English'},
                 {'id': 'it', 'text': 'Italian'},
                 {'id': 'sp', 'text': 'Spanish'}
-            ]
+            ],
+            'more': False,
         })
 
     @override_settings(ADVANCED_FILTERS_DISABLE_FOR_FIELDS=('email',))
@@ -90,14 +92,14 @@ class TestGetFieldChoicesView(TestCase):
         view_url = reverse(self.url_name, kwargs=dict(
             model='customers.Client', field_name='email'))
         res = self.client.get(view_url)
-        self.assert_json(res, {'results': []})
+        self.assert_json(res, {'results': [], 'more': False})
 
     def test_disabled_field_types(self):
         factories.Client.create_batch(3, assigned_to=self.user)
         view_url = reverse(self.url_name, kwargs=dict(
             model='customers.Client', field_name='is_active'))
         res = self.client.get(view_url)
-        self.assert_json(res, {'results': []})
+        self.assert_json(res, {'results': [], 'more': False})
 
     def test_database_choices(self):
         clients = factories.Client.create_batch(3, assigned_to=self.user)
@@ -105,24 +107,76 @@ class TestGetFieldChoicesView(TestCase):
             model='customers.Client', field_name='email'))
         res = self.client.get(view_url)
         self.assert_json(res, {
-            'results': [dict(id=e.email, text=e.email) for e in clients]
+            'results': [dict(id=e.email, text=e.email) for e in clients],
+            'more': False
         })
 
-    @override_settings(ADVANCED_FILTERS_MAX_CHOICES=4)
-    def test_more_than_max_database_choices(self):
-        factories.Client.create_batch(5, assigned_to=self.user)
-        view_url = reverse(self.url_name, kwargs=dict(
-            model='customers.Client', field_name='id'))
-        res = self.client.get(view_url)
-        self.assert_json(res, {'results': []})
-
-    @override_settings(ADVANCED_FILTERS_MAX_CHOICES=4)
     def test_distinct_database_choices(self):
         factories.Client.create_batch(5, assigned_to=self.user, email="foo@bar.com")
         view_url = reverse(self.url_name, kwargs=dict(
             model='customers.Client', field_name='email'))
         res = self.client.get(view_url)
-        self.assert_json(res, {'results': [{'id': 'foo@bar.com', 'text': 'foo@bar.com'}]})
+        self.assert_json(res, {'results': [{'id': 'foo@bar.com', 'text': 'foo@bar.com'}], 'more': False})
+
+    def test_search(self):
+        factories.Client.create(assigned_to=self.user, first_name="Franscisco")
+        factories.Client.create(assigned_to=self.user, first_name="Cindy")
+        factories.Client.create(assigned_to=self.user, first_name="John")
+        factories.Client.create(assigned_to=self.user, first_name="Mark")
+        factories.Client.create(assigned_to=self.user, first_name="Patricia")
+        view_url = reverse(self.url_name, kwargs=dict(
+            model='customers.Client', field_name='first_name'))
+        res = self.client.get(view_url, {'search': 'ci'})
+        self.assert_json(res, {
+            'results': [
+                {'id': 'Cindy', 'text': 'Cindy'},
+                {'id': 'Franscisco', 'text': 'Franscisco'},
+                {'id': 'Patricia', 'text': 'Patricia'},
+            ],
+            'more': False
+        })
+
+    @override_settings(ADVANCED_FILTERS_PAGE_SIZE=3)
+    def test_multiple_pages(self):
+        factories.Client.create(assigned_to=self.user, first_name="Franscisco")
+        factories.Client.create(assigned_to=self.user, first_name="Cindy")
+        factories.Client.create(assigned_to=self.user, first_name="John")
+        factories.Client.create(assigned_to=self.user, first_name="Mark")
+        factories.Client.create(assigned_to=self.user, first_name="Paul")
+        factories.Client.create(assigned_to=self.user, first_name="Amelie")
+        view_url = reverse(self.url_name, kwargs=dict(
+            model='customers.Client', field_name='first_name'))
+        res = self.client.get(view_url, {'page': '1'})
+        self.assert_json(res, {
+            'results': [
+                {'id': 'Amelie', 'text': 'Amelie'},
+                {'id': 'Cindy', 'text': 'Cindy'},
+                {'id': 'Franscisco', 'text': 'Franscisco'},
+            ],
+            'more': True
+        })
+        res = self.client.get(view_url, {'page': '2'})
+        self.assert_json(res, {
+            'results': [
+                {'id': 'John', 'text': 'John'},
+                {'id': 'Mark', 'text': 'Mark'},
+                {'id': 'Paul', 'text': 'Paul'},
+            ],
+            'more': False
+        })
+
+    @override_settings(ADVANCED_FILTERS_PAGE_SIZE=3)
+    def test_invalid_page(self):
+        factories.Client.create(assigned_to=self.user, first_name="Mark")
+        factories.Client.create(assigned_to=self.user, first_name="Paul")
+        factories.Client.create(assigned_to=self.user, first_name="Amelie")
+        view_url = reverse(self.url_name, kwargs=dict(
+            model='customers.Client', field_name='first_name'))
+        res = self.client.get(view_url, {'page': '2'})
+        self.assert_json(res, {
+            'results': [],
+            'more': False
+        })
 
 
 class TestGetOperatorChoices(TestCase):

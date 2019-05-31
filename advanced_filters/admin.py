@@ -6,12 +6,19 @@ from django.contrib.admin.utils import unquote
 from django.http import HttpResponseRedirect
 from django.shortcuts import resolve_url
 from django.utils.translation import ugettext_lazy as _
+from django.utils.module_loading import import_string
 
 from .forms import AdvancedFilterForm
 from .models import AdvancedFilter
 
 
 logger = logging.getLogger('advanced_filters.admin')
+
+admin_instance = getattr(settings, 'ADVANCED_FILTERS_ADMIN_INSTANCE', None)
+if admin_instance:
+    site = import_string(admin_instance).site
+else:
+    site = admin.site
 
 
 class AdvancedListFilters(admin.SimpleListFilter):
@@ -102,6 +109,7 @@ class AdminAdvancedFiltersMixin(object):
                      ).changelist_view(request, extra_context=extra_context)
 
 
+@admin.register(AdvancedFilter, site=site)
 class AdvancedFilterAdmin(admin.ModelAdmin):
     model = AdvancedFilter
     form = AdvancedFilterForm
@@ -154,6 +162,3 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
         if obj is None:
             return super(AdvancedFilterAdmin, self).has_delete_permission(request)
         return self.user_has_permission(request.user) or obj in self.model.objects.filter_by_user(request.user)
-
-
-admin.site.register(AdvancedFilter, AdvancedFilterAdmin)
