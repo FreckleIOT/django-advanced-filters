@@ -53,8 +53,21 @@ var OperatorHandlers = function($) {
 			self.add_datepickers();
 		} else {
 			self.remove_datepickers();
+			if (self.value !== 'iexact'){
+				self.removeSelect2(elm)
+			} else {
+				valueElem = $(elm).parents('tr').find('input.query-value');
+				self.initialize_select2(valueElem)
+			}
 		}
 	};
+
+
+	self.removeSelect2 = function(elm) {
+		var input = $(elm).parents('tr').find('input.query-value');
+		input.select2("destroy");
+		input.val('')
+	}
 
 	self.get_operators = function getOperators(elm) {
 		var field = $(elm).val();
@@ -68,8 +81,7 @@ var OperatorHandlers = function($) {
 				const option = new Option(results[i].value, results[i].key);
 				$(query).append($(option));
 			}
-			$(query).val(results[0].key);
-			$(query).trigger("change");
+			$(query).val(results[0].key).change();
 		});
 
 	};
