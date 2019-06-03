@@ -67,7 +67,7 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
         label=_('Operator'),
         required=True, choices=OPERATORS, initial="iexact",
         widget=forms.Select(attrs={'class': 'query-operator'}))
-    value = VaryingTypeCharField(required=True, widget=forms.TextInput(
+    value = VaryingTypeCharField(required=False, widget=forms.TextInput(
         attrs={'class': 'query-value'}), label=_('Value'))
     value_from = forms.DateTimeField(widget=forms.HiddenInput(
         attrs={'class': 'query-dt-from'}), required=False)
@@ -93,7 +93,7 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
             formdata = self.cleaned_data
         key = "{field}__{operator}".format(**formdata)
         if formdata['operator'] == "isnull":
-            return {key: None}
+            return {key: True}
         elif formdata['operator'] == "istrue":
             return {formdata['field']: True}
         elif formdata['operator'] == "isfalse":
@@ -128,7 +128,9 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
         else:
             mfield = mfield[-1]  # get the field object
 
-        if query_data['value'] is None:
+        if operator == "isnull":
+            query_data['operator'] = "isnull"
+        elif query_data['value'] is None:
             query_data['operator'] = "isnull"
         elif query_data['value'] is True:
             query_data['operator'] = "istrue"
@@ -167,6 +169,15 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
             if ('value_from' in cleaned_data and
                     'value_to' in cleaned_data):
                 self.set_range_value(cleaned_data)
+        elif (not (cleaned_data.get('field') == "_OR" or
+                   cleaned_data.get('operator') == "isnull" or
+                   cleaned_data.get('operator') == "istrue" or
+                   cleaned_data.get('operator') == "isfalse") and
+                cleaned_data.get('value') == ''):
+            logger.debug(
+                "Errors validating advanced query filters: value "
+                "is a required attribute")
+            raise forms.ValidationError({'value': ["This field is required.", ]})
         return cleaned_data
 
     def make_query(self, *args, **kwargs):

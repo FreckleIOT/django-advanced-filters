@@ -72,3 +72,8 @@
     min-width: 166px;
 }
 
+.disabledbutton {
+    pointer-events: none;
+	opacity: 0.5;
+	display: none !important;
+}

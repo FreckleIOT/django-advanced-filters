@@ -15,8 +15,8 @@ class UserLookupManager(models.Manager):
 
 class AdvancedFilter(models.Model):
     class Meta:
-        verbose_name = _('Advanced Filter')
-        verbose_name_plural = _('Advanced Filters')
+        verbose_name = 'Advanced Filter'
+        verbose_name_plural = 'Advanced Filters'
 
     title = models.CharField(max_length=255, null=False, blank=False, verbose_name=_('Title'))
     created_by = models.ForeignKey(
