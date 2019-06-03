@@ -9,12 +9,12 @@ var OperatorHandlers = function($) {
 		var form_id = self.val_input.parents('tr').attr('id');
 		var form_num = parseInt(form_id.replace('form-', ''), 10);
 
-		var $from = $('<input type="text">');
+		var $from = $('<input type="date">');
 		$from.attr("name", "form-" + form_num + "-value_from");
 		$from.attr("id", "id_form-" + form_num + "-value_from");
 		$from.attr("placeholder", gettext('Start date (YYYY-MM-DD)'));
 		$from.addClass('query-dt-from');
-		var $to = $('<input type="text">');
+		var $to = $('<input type="date">');
 		$to.attr("name", "form-" + form_num + "-value_to");
 		$to.attr("id", "id_form-" + form_num + "-value_to");
 		$to.attr("placeholder", gettext('End date (YYYY-MM-DD)'));
@@ -33,20 +33,14 @@ var OperatorHandlers = function($) {
 			}
 		}
 		self.val_input.css({display: 'none'});
-
-		$(".hasDatepicker").datepicker("destroy");
 		$from.addClass('vDateField');
 		$to.addClass('vDateField');
-		grappelli.initDateAndTimePicker();
 	};
 
 	self.remove_datepickers = function() {
 		self.val_input.css({display: 'block'});
 		if (self.val_input.parent().find('input.vDateField').length > 0) {
 			var datefields = self.val_input.parent().find('input.vDateField');
-			datefields.each(function() {
-				$(this).datepicker("destroy");
-			});
 			datefields.remove();
 		}
 	};
@@ -55,12 +49,41 @@ var OperatorHandlers = function($) {
 		// pick a widget for the value field according to operator
 		self.value = $(elm).val();
 		self.val_input = $(elm).parents('tr').find('.query-value');
-		console.log("selected operator: " + self.value);
 		if (self.value == "range") {
 			self.add_datepickers();
 		} else {
 			self.remove_datepickers();
+			if (self.value !== 'iexact'){
+				self.removeSelect2(elm)
+			} else {
+				valueElem = $(elm).parents('tr').find('input.query-value');
+				self.initialize_select2(valueElem)
+			}
 		}
+	};
+
+
+	self.removeSelect2 = function(elm) {
+		var input = $(elm).parents('tr').find('input.query-value');
+		input.select2("destroy");
+		input.val('')
+	}
+
+	self.get_operators = function getOperators(elm) {
+		var field = $(elm).val();
+		var choicesUrl = ADVANCED_FILTER_OPERATOR_LOOKUP_URL + (FORM_MODEL ||
+		MODEL_LABEL) + '/' + field;
+		$.get(choicesUrl, function getChoices(data) {
+		  var query = $(elm).parents('tr').find('select.query-operator');
+		  var results = data.results;
+		  $(query).empty()
+		  for (let i = 0; i < results.length; i += 1) {
+				const option = new Option(results[i].value, results[i].key);
+				$(query).append($(option));
+			}
+			$(query).val(results[0].key).change();
+		});
+
 	};
 
 	self.initialize_select2 = function(elm) {
@@ -91,6 +114,9 @@ var OperatorHandlers = function($) {
         }
       }
     });
+		if ($(elm).val() !== '_OR') {
+			self.get_operators(elm);
+		}
 	};
 
 	self.field_selected = function(elm) {

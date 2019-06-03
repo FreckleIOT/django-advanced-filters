@@ -11,6 +11,7 @@ from django.views.generic import View
 
 from braces.views import (CsrfExemptMixin, StaffuserRequiredMixin,
                           JSONResponseMixin)
+from advanced_filters.forms import AdvancedFilterQueryForm
 
 from django.core.paginator import Paginator, EmptyPage
 
@@ -88,3 +89,63 @@ class GetFieldChoices(CsrfExemptMixin, StaffuserRequiredMixin,
 
         return self.render_json_response(
             {'results': results, "more": has_next})
+
+
+class GetOperatorChoices(CsrfExemptMixin, StaffuserRequiredMixin,
+                         JSONResponseMixin, View):
+
+    def get(self, request, model=None, field_name=None):
+        if model is field_name is None:
+            return self.render_json_response(
+                {'error': "GetOperatorChoices view requires 2 arguments"},
+                status=400)
+        app_label, model_name = model.split('.', 1)
+        try:
+            model_obj = apps.get_model(app_label, model_name)
+            field = get_fields_from_path(model_obj, field_name)[-1]
+            model_obj = field.model
+            internal_type = field.get_internal_type()
+            disabled = getattr(settings, 'ADVANCED_FILTERS_DISABLE_FOR_FIELDS',
+                               tuple())
+            if field.name in disabled:
+                logger.debug('Skipped lookup of operators for disabled fields')
+                choices = []
+            else:
+                af_options = dict(AdvancedFilterQueryForm.OPERATORS)
+                choices = []
+                field_options = []
+                if (
+                    internal_type == 'CharField' or 
+                    internal_type == 'EmailField' or 
+                    internal_type == 'URLField'):
+                    field_options = ["iexact", "icontains", "iregex", "isnull"]
+                elif internal_type == 'BooleanField':
+                    field_options = ["istrue", "isfalse", "isnull"]
+                elif (
+                    internal_type == 'PositiveIntegerField' or
+                    internal_type == 'SmallIntegerField' or 
+                    internal_type == 'PositiveSmallIntegerField' or
+                    internal_type == 'BigIntegerField' or
+                    internal_type == 'IntegerField' or
+                    internal_type == 'FloatField' or
+                    internal_type == 'DecimalField'):
+                    field_options = ["lt", "gt", "lte", "gte", "isnull"]
+                elif (
+                    internal_type == 'DateTimeField' or
+                    internal_type == 'DateField'):
+                    field_options = ["range", "lt", "gt", "lte", "gte","isnull"]
+                else:
+                    field_options = af_options
+                choices = [
+                    {'key': option, 'value': af_options[option] } 
+                    for option in field_options
+                ]
+            return self.render_json_response({'results': choices })
+        except AttributeError as e:
+            logger.debug("Invalid kwargs passed to view: %s", e)
+            return self.render_json_response(
+                {'error': "No installed app/model: %s" % model}, status=400)
+        except (LookupError, FieldDoesNotExist) as e:
+            logger.debug("Invalid kwargs passed to view: %s", e)
+            return self.render_json_response(
+                {'error': force_text(e)}, status=400)
