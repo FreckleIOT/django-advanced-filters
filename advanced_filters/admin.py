@@ -76,7 +76,7 @@ class AdminAdvancedFiltersMixin(object):
                 request, messages.SUCCESS,
                 _('Advanced filter added successfully.')
             )
-            if '_save_goto' in (request.GET or request.POST):
+            if ('_save_goto' in request.GET) or ('_save_goto' in request.POST):
                 url = "{path}{qparams}".format(
                     path=request.path, qparams="?_afilter={id}".format(
                         id=afilter.id))
