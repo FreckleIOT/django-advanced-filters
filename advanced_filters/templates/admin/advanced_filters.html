@@ -28,11 +28,11 @@
 					{% csrf_token %}
 					{{ formset.management_form }}
 					<input type="hidden" value="advanced_filters" name="action">
-					<table>
+					<table class="af-name-table">
 						{{ advanced_filters.as_table }}
 					</table>
 					<br/>
-					<table id="{{ formset.prefix }}-group" data-rules-formset>
+					<table id="{{ formset.prefix }}-group" data-rules-formset class="af-table">
 						<thead>
 							<tr>
 								{% for field in formset.fields %}
@@ -61,8 +61,8 @@
 						</tbody>
 					</table>
 					<br />
-					<input method="POST" type="submit" value="{% trans "Save" %}">
-					<input method="POST" name="_save_goto" type="submit" value="{% trans "Save & Filter Now!" %}">
+					<input method="POST" type="submit" class="btn" value="{% trans "Save" %}">
+					<input method="POST" name="_save_goto" type="submit" class="btn btn-secondary" value="{% trans "Save & Filter Now!" %}">
 					<a href="#" class="grp-button" style="margin:auto" onclick="$.magnificPopup.close();">{% trans "Cancel" %}</a>
 				</form>
 
