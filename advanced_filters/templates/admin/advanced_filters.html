@@ -63,7 +63,7 @@
 					<br />
 					<input method="POST" type="submit" class="btn" value="{% trans "Save" %}">
 					<input method="POST" name="_save_goto" type="submit" class="btn btn-secondary" value="{% trans "Save & Filter Now!" %}">
-					<a href="#" class="grp-button" style="margin:auto" onclick="$.magnificPopup.close();">{% trans "Cancel" %}</a>
+					<a href="#" class="grp-button" style="margin:auto" onclick="closePopup();">{% trans "Cancel" %}</a>
 				</form>
 
 				{{ advanced_filters.media.js }}
@@ -72,6 +72,9 @@
 					// using django's original jquery, initial formset
 					var FORM_MODEL = undefined;
 					var MODEL_LABEL = '{{ app_label }}.{{ opts.model_name }}';
+					function closePopup() {
+					    window.location.replace(window.location.href);
+					}
 					(function($) {
 						$.magnificPopup.instance._onFocusIn = function(e) {
 							// Do nothing if target element is select2 input
@@ -83,6 +86,13 @@
 						};
 						$('.ajax-popup-link').magnificPopup({
 							type:'inline',
+							callbacks: {
+							        open: function () {
+							                $.magnificPopup.instance.close = function () {
+							                        closePopup();
+							                };
+							        }
+							}
 						});
 						if ($(".errorlist", "#advanced_filters").length) {
 							$('.ajax-popup-link').magnificPopup('open');

@@ -45,21 +45,32 @@ var OperatorHandlers = function($) {
 		}
 	};
 
-	self.modify_widget = function(elm) {
+	self.modify_widget = function(elm, init) {
 		// pick a widget for the value field according to operator
 		self.value = $(elm).val();
 		self.val_input = $(elm).parents('tr').find('.query-value');
+		var row = $(elm).parents('tr');
+		var value = row.find('.query-value');
+		var op = row.find('.query-operator');
 		if (self.value == "range") {
 			self.add_datepickers();
 		} else {
 			self.remove_datepickers();
-			if (self.value !== 'iexact'){
-				self.removeSelect2(elm)
-			} else {
-				valueElem = $(elm).parents('tr').find('input.query-value');
-				self.initialize_select2(valueElem)
+			if (!init){
+				valueElem = $(elm).parents('tr').find('select.query-field');
+				if ($(op).val() == "isnull" || $(op).val() == "istrue" || $(op).val() == "isfalse") {
+					self.disable_value(value);
+				} else {
+					self.enable_value(value);
+				}
+				if ($(op).val() === 'iexact'){
+					self.initialize_select2(valueElem, init)
+				} else {
+					self.removeSelect2(valueElem)
+				}
 			}
 		}
+
 	};
 
 
@@ -86,8 +97,9 @@ var OperatorHandlers = function($) {
 
 	};
 
-	self.initialize_select2 = function(elm) {
+	self.initialize_select2 = function(elm, init) {
 		// initialize select2 widget and populate field choices
+		let initValue = init || false;
 		var field = $(elm).val();
 		var choices_url = ADVANCED_FILTER_CHOICES_LOOKUP_URL + (FORM_MODEL ||
 						  MODEL_LABEL) + '/' + field;
@@ -113,34 +125,65 @@ var OperatorHandlers = function($) {
           };
         }
       }
-    });
-		if ($(elm).val() !== '_OR') {
-			self.get_operators(elm);
+		});
+    if (input[0].value && initValue) {
+      input.select2('data', { id: input[0].value, text: input[0].value });
+    } else {
+      input[0].value = null;
+      input.select2('data', null);
+    }
+	};
+
+	self.disable_value = function(value) {
+		value.addClass("disabledbutton");
+		value.children().prop('disabled',true);
+		value.val(null);
+		value.after('<input type="hidden" value="' + value.val() +
+		'" name="' + value.attr("name") + '">');
+	};
+
+	self.disable_op = function(op) {
+		op.prop("disabled", true);
+		op.addClass("disabledbutton");
+		op.after('<input type="hidden" value="' + op.val() +
+			'" name="' + op.attr("name") + '">');
+	};
+
+	self.enable_value = function(value) {
+		value.children().prop("disabled", false);
+		value.removeClass("disabledbutton");
+		value.siblings('input[type="hidden"]').remove();
+		if (!value.val() == "null") {
+			value.val("");
 		}
 	};
 
-	self.field_selected = function(elm) {
+	self.enable_op = function(op) {
+		op.prop("disabled", false);
+		op.removeClass("disabledbutton");
+		op.siblings('input[type="hidden"]').remove();
+	};
+
+	self.field_selected = function(elm, init) {
+		let initValue = init || false;
 		self.selected_field_elm = elm;
 		var row = $(elm).parents('tr');
 		var op = row.find('.query-operator');
 		var value = row.find('.query-value');
+
 		if ($(elm).val() == "_OR") {
-			op.val("iexact").prop("disabled", true);
-			value.val("null").prop("disabled", true);
-			op.after('<input type="hidden" value="' + op.val() +
-				'" name="' + op.attr("name") + '">');
-			value.after('<input type="hidden" value="' + value.val() +
-				'" name="' + value.attr("name") + '">');
+			self.disable_value(value);
+			self.disable_op(op);
 		} else {
-			op.prop("disabled", false);
-			op.siblings('input[type="hidden"]').remove();
-			value.prop("disabled", false);
-			value.siblings('input[type="hidden"]').remove();
-			if (!value.val() == "null") {
-				value.val("");
-			}
-			op.val("iexact").change();
-			self.initialize_select2(elm);
+			self.get_operators(elm);
+		}
+		if ($(op).val() == "isnull" || $(op).val() == "istrue" || $(op).val() == "isfalse") {
+			self.disable_value(value);
+		}
+		if ($(op).val() === 'iexact'){
+			self.initialize_select2(elm, initValue)
+		} else {
+			self.removeSelect2(elm)
 		}
 	};
 
@@ -158,7 +201,7 @@ var OperatorHandlers = function($) {
 				if ($(this).val() != before_change) self.modify_widget(this);
 				$(this).data('pre_change', $(this).val());
 			}).change();
-			self.modify_widget(this);
+			self.modify_widget(this, true);
 		});
 		$('.form-row select.query-field').each(function() {
 			$(this).off("change");
@@ -168,8 +211,8 @@ var OperatorHandlers = function($) {
 				if ($(this).val() != before_change) self.field_selected(this);
 				$(this).data('pre_change', $(this).val());
 			}).change();
+			self.field_selected($(this), true);
 		});
-		self.field_selected($('.form-row select.query-field').first());
 
 	};
 
