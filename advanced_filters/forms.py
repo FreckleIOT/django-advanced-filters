@@ -73,7 +73,7 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
         attrs={'class': 'query-dt-from'}), required=False)
     value_to = forms.DateTimeField(widget=forms.HiddenInput(
         attrs={'class': 'query-dt-to'}), required=False)
-    negate = forms.BooleanField(initial=False, required=False, label=_('Negate'))
+    negate = forms.BooleanField(initial=False, required=False, label=_('Exclude'))
 
     def _build_field_choices(self, fields):
         """
