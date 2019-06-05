@@ -6,12 +6,21 @@ from django.contrib.admin.utils import unquote
 from django.http import HttpResponseRedirect
 from django.shortcuts import resolve_url
 from django.utils.translation import ugettext_lazy as _
+from django.utils.module_loading import import_string
+from urllib import parse
+from django.utils.http import urlencode
 
 from .forms import AdvancedFilterForm
 from .models import AdvancedFilter
 
 
 logger = logging.getLogger('advanced_filters.admin')
+
+admin_instance = getattr(settings, 'ADVANCED_FILTERS_ADMIN_INSTANCE', None)
+if admin_instance:
+    site = import_string(admin_instance).site
+else:
+    site = admin.site
 
 
 class AdvancedListFilters(admin.SimpleListFilter):
@@ -69,10 +78,14 @@ class AdminAdvancedFiltersMixin(object):
                 request, messages.SUCCESS,
                 _('Advanced filter added successfully.')
             )
-            if '_save_goto' in (request.GET or request.POST):
+            qparams = request.GET.urlencode()
+            qparams = dict(parse.parse_qsl(qparams))
+            qparams['_afilter'] = afilter.id
+            qparams = urlencode(sorted(qparams.items()))
+            if ('_save_goto' in request.GET) or ('_save_goto' in request.POST):
                 url = "{path}{qparams}".format(
-                    path=request.path, qparams="?_afilter={id}".format(
-                        id=afilter.id))
+                    path=request.path, qparams="?{qparams}".format(
+                        id=afilter.id, qparams= qparams))
                 return HttpResponseRedirect(url)
         elif request.method == "POST":
             logger.info('Failed saving advanced filter, params: %s', form.data)
@@ -102,6 +115,7 @@ class AdminAdvancedFiltersMixin(object):
                      ).changelist_view(request, extra_context=extra_context)
 
 
+@admin.register(AdvancedFilter, site=site)
 class AdvancedFilterAdmin(admin.ModelAdmin):
     model = AdvancedFilter
     form = AdvancedFilterForm
@@ -123,6 +137,7 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         orig_response = super(AdvancedFilterAdmin, self).change_view(
             request, object_id, form_url, extra_context)
+        qparams = request.GET.urlencode()
         if '_save_goto' in request.POST:
             obj = self.get_object(request, unquote(object_id))
             if obj:
@@ -130,9 +145,12 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
                 path = resolve_url('admin:%s_%s_changelist' % (
                     app, model.lower()))
                 url = "{path}{qparams}".format(
-                    path=path, qparams="?_afilter={id}".format(id=object_id))
+                    path=path, qparams="?{qparams}".format(
+                        id=object_id, qparams= qparams))
+                logger.info(url)
                 return HttpResponseRedirect(url)
         return orig_response
+
 
     @staticmethod
     def user_has_permission(user):
@@ -154,6 +172,3 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
         if obj is None:
             return super(AdvancedFilterAdmin, self).has_delete_permission(request)
         return self.user_has_permission(request.user) or obj in self.model.objects.filter_by_user(request.user)
-
-
-admin.site.register(AdvancedFilter, AdvancedFilterAdmin)

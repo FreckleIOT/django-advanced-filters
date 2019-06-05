@@ -11,7 +11,7 @@
 	{# Add a link to the end of the tool items #}
 	{% if advanced_filters %}
 		<li><div class="afilters">
-			<a class="ajax-popup-link icons-object-tools-add-link" href="#advanced_filters" >{% trans "Advanced Filter" %}</a>{% if '_afilter' in request.GET %}<a class="edit-link" href="{% url 'admin:advanced_filters_advancedfilter_change' current_afilter %}" >{% trans "Edit" %}</a>
+			<a class="ajax-popup-link icons-object-tools-add-link" href="#advanced_filters" >{% trans "Advanced Filter" %}</a>{% if '_afilter' in request.GET %}<a class="edit-link" href="{% url 'admin:advanced_filters_advancedfilter_change' current_afilter %}?{{ request.GET.urlencode }}" >{% trans "Edit" %}</a>
 			{% endif %}
 		</div></li>
 	{% endif %}
@@ -28,11 +28,11 @@
 					{% csrf_token %}
 					{{ formset.management_form }}
 					<input type="hidden" value="advanced_filters" name="action">
-					<table>
+					<table class="af-name-table">
 						{{ advanced_filters.as_table }}
 					</table>
 					<br/>
-					<table id="{{ formset.prefix }}-group" data-rules-formset>
+					<table id="{{ formset.prefix }}-group" data-rules-formset class="af-table">
 						<thead>
 							<tr>
 								{% for field in formset.fields %}
@@ -61,9 +61,9 @@
 						</tbody>
 					</table>
 					<br />
-					<input method="POST" type="submit" value="{% trans "Save" %}">
-					<input method="POST" name="_save_goto" type="submit" value="{% trans "Save & Filter Now!" %}">
-					<a href="#" class="grp-button" style="margin:auto" onclick="$.magnificPopup.close();">{% trans "Cancel" %}</a>
+					<input method="POST" type="submit" class="btn" value="{% trans "Save" %}">
+					<input method="POST" name="_save_goto" type="submit" class="btn btn-secondary" value="{% trans "Save & Filter Now!" %}">
+					<a href="#" class="grp-button" style="margin:auto" onclick="closePopup();">{% trans "Cancel" %}</a>
 				</form>
 
 				{{ advanced_filters.media.js }}
@@ -72,6 +72,9 @@
 					// using django's original jquery, initial formset
 					var FORM_MODEL = undefined;
 					var MODEL_LABEL = '{{ app_label }}.{{ opts.model_name }}';
+					function closePopup() {
+					    window.location.replace(window.location.href);
+					}
 					(function($) {
 						$.magnificPopup.instance._onFocusIn = function(e) {
 							// Do nothing if target element is select2 input
@@ -83,6 +86,13 @@
 						};
 						$('.ajax-popup-link').magnificPopup({
 							type:'inline',
+							callbacks: {
+							        open: function () {
+							                $.magnificPopup.instance.close = function () {
+							                        closePopup();
+							                };
+							        }
+							}
 						});
 						if ($(".errorlist", "#advanced_filters").length) {
 							$('.ajax-popup-link').magnificPopup('open');

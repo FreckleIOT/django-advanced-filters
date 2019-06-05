@@ -11,7 +11,6 @@
 	<form novalidate {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form">{% csrf_token %}{% block form_top %}{% endblock %}
 		{% with adminform.form.fields_formset as formset %}
 			<div id="advanced_filters">
-				<h1>{% trans "Change advanced filter" %}:</h1>
 					{% csrf_token %}
 					{{ formset.management_form }}
 					<!-- Fieldsets -->
@@ -21,7 +20,7 @@
 						{% endfor %}
 					{% endblock %}
 					<br/>
-					<table id="{{ formset.prefix }}-group" data-rules-formset>
+					<table id="{{ formset.prefix }}-group" data-rules-formset class="af-table">
 						<thead>
 							<tr>
 								{% for field in formset.fields %}
@@ -29,7 +28,7 @@
 								{% endfor %}
 							</tr>
 						</thead>
-						<tbody>
+						<tbody class="af-table-body-change">
 							{% for form in formset %}
 								<tr class="form-row {% cycle "row1" "row2" %} {% if forloop.last %}empty-form{% endif %}" id="{{ formset.prefix }}-{% if not forloop.last %}{{ forloop.counter0 }}{% else %}empty{% endif %}">
 									{% for field in form.visible_fields %}
@@ -47,7 +46,7 @@
 				<!-- Submit-Row -->
 				{% block submit_buttons_bottom %}
 					{% submit_row %}
-					<input method="POST" name="_save_goto" type="submit" value="{% trans "Save & Filter Now!" %}">
+					<input method="POST" name="_save_goto" class="btn btn-secondary" type="submit" value="{% trans "Save & Filter Now!" %}">
 				{% endblock %}
 
 				<!-- JS for prepopulated fields -->
