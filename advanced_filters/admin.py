@@ -7,6 +7,8 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import resolve_url
 from django.utils.translation import ugettext_lazy as _
 from django.utils.module_loading import import_string
+from urllib import parse
+from django.utils.http import urlencode
 
 from .forms import AdvancedFilterForm
 from .models import AdvancedFilter
@@ -131,6 +133,7 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         orig_response = super(AdvancedFilterAdmin, self).change_view(
             request, object_id, form_url, extra_context)
+        qparams = request.GET.urlencode()
         if '_save_goto' in request.POST:
             obj = self.get_object(request, unquote(object_id))
             if obj:
@@ -138,9 +141,12 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
                 path = resolve_url('admin:%s_%s_changelist' % (
                     app, model.lower()))
                 url = "{path}{qparams}".format(
-                    path=path, qparams="?_afilter={id}".format(id=object_id))
+                    path=path, qparams="?{qparams}".format(
+                        id=object_id, qparams= qparams))
+                logger.info(url)
                 return HttpResponseRedirect(url)
         return orig_response
+
 
     @staticmethod
     def user_has_permission(user):
