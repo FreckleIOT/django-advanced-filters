@@ -78,10 +78,14 @@ class AdminAdvancedFiltersMixin(object):
                 request, messages.SUCCESS,
                 _('Advanced filter added successfully.')
             )
+            qparams = request.GET.urlencode()
+            qparams = dict(parse.parse_qsl(qparams))
+            qparams['_afilter'] = afilter.id
+            qparams = urlencode(sorted(qparams.items()))
             if ('_save_goto' in request.GET) or ('_save_goto' in request.POST):
                 url = "{path}{qparams}".format(
-                    path=request.path, qparams="?_afilter={id}".format(
-                        id=afilter.id))
+                    path=request.path, qparams="?{qparams}".format(
+                        id=afilter.id, qparams= qparams))
                 return HttpResponseRedirect(url)
         elif request.method == "POST":
             logger.info('Failed saving advanced filter, params: %s', form.data)
