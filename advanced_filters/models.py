@@ -12,6 +12,9 @@ class UserLookupManager(models.Manager):
 
         return self.filter(Q(users=user) | Q(groups__in=user.groups.all()))
 
+    def filter_by_user_or_public(self, user):
+        return self.filter(Q(users=user) | Q(groups__in=user.groups.all()) | Q(is_public=True))
+
 
 class AdvancedFilter(models.Model):
     class Meta:
@@ -29,6 +32,8 @@ class AdvancedFilter(models.Model):
     url = models.CharField(max_length=255, null=False, blank=False, verbose_name=_('URL'))
     users = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, verbose_name=_('Users'))
     groups = models.ManyToManyField('auth.Group', blank=True, verbose_name=_('Groups'))
+    is_public = models.BooleanField(
+        default=False, help_text=_('If checked, the filter will be available for all users'))
 
     objects = UserLookupManager()
 

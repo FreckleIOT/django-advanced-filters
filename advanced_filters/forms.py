@@ -1,29 +1,25 @@
-from datetime import datetime as dt
-from pprint import pformat
 import logging
 import operator
+from datetime import datetime as dt
+from pprint import pformat
 
+import django
 from django import forms
-
 from django.apps import apps
-
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.utils import get_fields_from_path
-from django.db.models import Q, FieldDoesNotExist
+from django.db.models import FieldDoesNotExist, Q
 from django.db.models.fields import DateField
-from django.forms.formsets import formset_factory, BaseFormSet
+from django.forms.formsets import BaseFormSet, formset_factory
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.module_loading import import_string
 from django.utils.six.moves import range, reduce
 from django.utils.text import capfirst
-from django.utils.module_loading import import_string
+from django.utils.translation import ugettext_lazy as _
 
-import django
-
+from .form_helpers import CleanWhiteSpacesMixin, VaryingTypeCharField
 from .models import AdvancedFilter
-from .form_helpers import CleanWhiteSpacesMixin,  VaryingTypeCharField
-
 
 # django < 1.9 support
 USE_VENDOR_DIR = django.VERSION >= (1, 9)
@@ -190,12 +186,20 @@ class AdvancedFilterQueryForm(CleanWhiteSpacesMixin, forms.Form):
             query = query & Q(**query_dict)
         return query
 
-    def __init__(self, model_fields={}, *args, **kwargs):
+    def __init__(self, model_fields={}, readonly=False, *args, **kwargs):
+        self.readonly = readonly
         super(AdvancedFilterQueryForm, self).__init__(*args, **kwargs)
         self.FIELD_CHOICES = self._build_field_choices(model_fields)
         self.fields['field'].choices = self.FIELD_CHOICES
         if not self.fields['field'].initial:
             self.fields['field'].initial = self.FIELD_CHOICES[0]
+
+        self.fields['field'].disabled = self.readonly
+        self.fields['operator'].disabled = self.readonly
+        self.fields['value'].disabled = self.readonly
+        self.fields['value_from'].disabled = self.readonly
+        self.fields['value_to'].disabled = self.readonly
+        self.fields['negate'].disabled = self.readonly
 
 
 class AdvancedFilterFormSet(BaseFormSet):
@@ -205,6 +209,8 @@ class AdvancedFilterFormSet(BaseFormSet):
 
     def __init__(self, *args, **kwargs):
         self.model_fields = kwargs.pop('model_fields', {})
+        self.readonly = kwargs.pop('readonly', False)
+        logger.warning(self.readonly)
         super(AdvancedFilterFormSet, self).__init__(*args, **kwargs)
         if self.forms:
             form = self.forms[0]
@@ -213,12 +219,14 @@ class AdvancedFilterFormSet(BaseFormSet):
     def get_form_kwargs(self, index):
         kwargs = super(AdvancedFilterFormSet, self).get_form_kwargs(index)
         kwargs['model_fields'] = self.model_fields
+        kwargs['readonly'] = self.readonly
         return kwargs
 
     @cached_property
     def forms(self):
-        # override the original property to include `model_fields` argument
-        forms = [self._construct_form(i, model_fields=self.model_fields)
+        # override the original property to include `model_fields` and `readonly` argument
+        forms = [self._construct_form(
+                    i, model_fields=self.model_fields, readonly=self.readonly)
                  for i in range(self.total_form_count())]
         forms.append(self.empty_form)  # add initial empty form
         return forms
@@ -237,7 +245,7 @@ class AdvancedFilterForm(CleanWhiteSpacesMixin, forms.ModelForm):
     """ Form to save/edit advanced filter forms """
     class Meta:
         model = AdvancedFilter
-        fields = ('title',)
+        fields = ('title', 'is_public')
 
     class Media:
         required_js = [
@@ -282,6 +290,7 @@ class AdvancedFilterForm(CleanWhiteSpacesMixin, forms.ModelForm):
         model_admin = kwargs.pop('model_admin', None)
         instance = kwargs.get('instance')
         extra_form = kwargs.pop('extra_form', False)
+        self.readonly = kwargs.pop('readonly', False)
         # TODO: allow all fields to be determined by model
         filter_fields = kwargs.pop('filter_fields', None)
         if model_admin:
@@ -369,7 +378,8 @@ class AdvancedFilterForm(CleanWhiteSpacesMixin, forms.ModelForm):
         self.fields_formset = formset(
             data=data,
             initial=forms or None,
-            model_fields=model_fields
+            model_fields=model_fields,
+            readonly=self.readonly
         )
 
     def save(self, commit=True):

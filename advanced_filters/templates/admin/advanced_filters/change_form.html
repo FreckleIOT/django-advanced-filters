@@ -44,10 +44,12 @@
 					<br />
 
 				<!-- Submit-Row -->
-				{% block submit_buttons_bottom %}
-					{% submit_row %}
-					<input method="POST" name="_save_goto" class="btn btn-secondary" type="submit" value="{% trans "Save & Filter Now!" %}">
-				{% endblock %}
+				{% if readonly != True %}
+					{% block submit_buttons_bottom %}
+						{% submit_row %}
+						<input method="POST" name="_save_goto" class="btn btn-secondary" type="submit" value="{% trans "Save & Filter Now!" %}">
+					{% endblock %}
+				{% endif%}
 
 				<!-- JS for prepopulated fields -->
 				{% prepopulated_fields_js %}
