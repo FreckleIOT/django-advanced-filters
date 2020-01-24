@@ -210,7 +210,6 @@ class AdvancedFilterFormSet(BaseFormSet):
     def __init__(self, *args, **kwargs):
         self.model_fields = kwargs.pop('model_fields', {})
         self.readonly = kwargs.pop('readonly', False)
-        logger.warning(self.readonly)
         super(AdvancedFilterFormSet, self).__init__(*args, **kwargs)
         if self.forms:
             form = self.forms[0]

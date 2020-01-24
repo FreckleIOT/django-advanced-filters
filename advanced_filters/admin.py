@@ -1,5 +1,6 @@
 import logging
 
+from django.db.models import Case, When
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin.utils import unquote
@@ -38,7 +39,9 @@ class AdvancedListFilters(admin.SimpleListFilter):
                                 model_admin.model._meta.object_name)
         return AdvancedFilter.objects.filter_by_user_or_public(
             request.user).filter(
-                model=model_name).values_list('id', 'title')
+                model=model_name).order_by(
+                    Case(When(created_by=request.user.id, then=0), default=1)
+                ).values_list('id', 'title')
 
     def queryset(self, request, queryset):
         if self.value():
@@ -125,6 +128,9 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
 
     list_display = ('title', 'created_by', 'is_public')
     readonly_fields = ('created_by', 'model', 'created_at', )
+    list_filter = (
+        'is_public',
+    )
 
     def has_add_permission(self, obj=None):
         return False
@@ -185,7 +191,10 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
         if self.user_has_permission(request.user):
             return super(AdvancedFilterAdmin, self).get_queryset(request)
         else:
-            return self.model.objects.filter_by_user_or_public(request.user)
+            return self.model.objects.filter_by_user_or_public(
+                request.user).order_by(
+                    Case(When(created_by=request.user.id, then=0), default=1)
+            )
 
     def has_change_permission(self, request, obj=None):
         if obj is None:
