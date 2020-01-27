@@ -131,6 +131,13 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
     list_filter = (
         'is_public',
     )
+    actions = ['delete_selected_filters']
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
     def has_add_permission(self, obj=None):
         return False
@@ -207,3 +214,29 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
             return super(AdvancedFilterAdmin, self).has_delete_permission(request)
         return (self.user_has_permission(request.user) or
                 obj in self.model.objects.filter_by_user(request.user))
+
+    def delete_selected_filters(self, request, queryset):
+        """
+        Custom delete selected.
+
+        A user should only be able to delete their own filters.
+        """
+        allowed_to_delete = queryset.filter(created_by=request.user)
+
+        to_delete_count = allowed_to_delete.count()
+        could_not_delete_count = queryset.exclude(created_by=request.user).count()
+
+        allowed_to_delete.delete()
+
+        if to_delete_count > 0:
+            self.message_user(
+                request,
+                f'Successfully deleted {to_delete_count} filters.',
+                level=messages.SUCCESS)
+
+        if could_not_delete_count > 0:
+            self.message_user(
+                request,
+                (f'Could not delete {could_not_delete_count} '
+                 'filters as they do not belong to the current user.'),
+                level=messages.WARNING)
