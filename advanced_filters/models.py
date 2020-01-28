@@ -40,6 +40,9 @@ class AdvancedFilter(models.Model):
     b64_query = models.CharField(max_length=2048)
     model = models.CharField(max_length=64, blank=True, null=True)
 
+    def __str__(self):
+        return f'{self.title} - {self.created_by}'
+
     @property
     def query(self):
         """

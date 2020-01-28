@@ -7,6 +7,7 @@ from django.contrib.admin.utils import unquote
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.utils.module_loading import import_string
 from urllib import parse
@@ -23,6 +24,23 @@ if admin_instance:
     site = import_string(admin_instance).site
 else:
     site = admin.site
+
+
+def clone_filter(adv_filter, user):
+    # Ensure filter will be created as a new instance instead of updating
+    # the cloned one
+    adv_filter.pk = None
+
+    adv_filter.created_by = user
+    adv_filter.title = f'{adv_filter.title} (cloned)'[:255]
+    adv_filter.created_at = None
+    adv_filter.is_public = False
+    adv_filter.save()
+    adv_filter.users.clear()
+    adv_filter.users.add(user)
+    adv_filter.groups.clear()
+
+    return adv_filter
 
 
 class AdvancedListFilters(admin.SimpleListFilter):
@@ -90,7 +108,7 @@ class AdminAdvancedFiltersMixin(object):
             if ('_save_goto' in request.GET) or ('_save_goto' in request.POST):
                 url = "{path}{qparams}".format(
                     path=request.path, qparams="?{qparams}".format(
-                        id=afilter.id, qparams= qparams))
+                        id=afilter.id, qparams=qparams))
                 return HttpResponseRedirect(url)
         elif request.method == "POST":
             logger.info('Failed saving advanced filter, params: %s', form.data)
@@ -131,7 +149,7 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
     list_filter = (
         'is_public',
     )
-    actions = ['delete_selected_filters']
+    actions = ['delete_selected_filters', 'clone_selected_filters']
 
     def get_actions(self, request):
         actions = super().get_actions(request)
@@ -158,6 +176,16 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
         return AdminFormWithRequest
 
     def save_model(self, request, new_object, *args, **kwargs):
+        if ('_clone' in request.GET) or ('_clone' in request.POST):
+            # Cloning filter instance for current user
+            cloned_filter = clone_filter(new_object, request.user)
+            path = reverse(
+                'admin:advanced_filters_advancedfilter_change',
+                args=(cloned_filter.pk, )
+            )
+            request.path = path
+            return super(AdvancedFilterAdmin, self).save_model(
+                request, cloned_filter, *args, **kwargs)
         if new_object and not new_object.pk:
             new_object.created_by = request.user
         elif new_object.created_by != request.user:
@@ -176,7 +204,9 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
         orig_response = super(AdvancedFilterAdmin, self).change_view(
             request, object_id, form_url, extra_context)
         qparams = request.GET.urlencode()
-        if '_save_goto' in request.POST:
+        if '_clone' in request.POST:
+            return HttpResponseRedirect(request.path)
+        elif '_save_goto' in request.POST:
             obj = self.get_object(request, unquote(object_id))
             if obj:
                 app, model = obj.model.split('.')
@@ -240,3 +270,12 @@ class AdvancedFilterAdmin(admin.ModelAdmin):
                 (f'Could not delete {could_not_delete_count} '
                  'filters as they do not belong to the current user.'),
                 level=messages.WARNING)
+
+    def clone_selected_filters(self, request, queryset):
+        for adv_filter in queryset.all():
+            clone_filter(adv_filter, request.user)
+
+        self.message_user(
+            request,
+            f'{queryset.count()} filters successfully cloned.',
+            level=messages.SUCCESS)
