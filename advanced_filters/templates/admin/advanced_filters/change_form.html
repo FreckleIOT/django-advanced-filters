@@ -46,7 +46,11 @@
 				<!-- Submit-Row -->
 				{% block submit_buttons_bottom %}
 					{% submit_row %}
-					<input method="POST" name="_save_goto" class="btn btn-secondary" type="submit" value="{% trans "Save & Filter Now!" %}">
+					{% if readonly != True %}
+							<input method="POST" name="_save_goto" class="btn btn-secondary" type="submit" value="{% trans "Save & Filter Now!" %}">
+					{% else %}
+							<input method="POST" name="_clone" class="btn btn-secondary" type="submit" value="{% trans "Clone filter" %}">
+					{% endif%}
 				{% endblock %}
 
 				<!-- JS for prepopulated fields -->
